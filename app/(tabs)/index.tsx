@@ -1,17 +1,7 @@
-import { transform } from "@babel/core";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  useAnimatedProps,
-  useDerivedValue,
-  useSharedValue,
-  withDecay,
-  withDelay,
-  withRepeat,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import Svg, {
   Circle,
   Defs,
@@ -19,10 +9,9 @@ import Svg, {
   Filter,
   Line,
   Path,
-  Text as SvgText,
 } from "react-native-svg";
 
-const { width, height } = Dimensions.get("screen");
+const { width } = Dimensions.get("screen");
 
 const _clockRadius = width * 0.3;
 
@@ -48,24 +37,38 @@ const sin = Math.sin;
 const cos = Math.cos;
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 export default function HomeScreen() {
-  const secondHandAngle = useSharedValue(0);
+  const now = new Date();
+  const [time, setTime] = useState({
+    seconds: now.getSeconds(),
+    minutes: now.getMinutes(),
+    hours: now.getHours(),
+  });
 
-  const secondHandRotate = useAnimatedProps(() => {
-    return {
-      transform: `rotate(${98} ${width / 2},${width / 2})`,
-      // rotation: secondHandAngle.value,
+  useEffect(() => {
+    const s = setInterval(() => {
+      setTime((prev) => {
+        const actualSeconds = (prev.seconds + 1) % 60;
+        const actualMinutes =
+          actualSeconds === 0 ? (prev.minutes + 1) % 60 : prev.minutes;
+        const actualHours =
+          actualMinutes === 0 && actualSeconds === 0
+            ? (prev.hours + 1) % 24
+            : prev.hours;
+        return {
+          seconds: actualSeconds,
+          minutes: actualMinutes,
+          hours: actualHours,
+        };
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(s);
     };
-  }, [secondHandAngle]);
-
-  // useEffect(() => {
-  //   secondHandAngle.value = withRepeat(
-  //     withTiming(, { duration: 60000, easing: (t) => t }), // 60 secondes pour 360 degrés
-  //     Infinity, // répéter indéfiniment
-  //     true // sans inversion
-  //   );
-  // }, []);
+  }, []);
 
   return (
     <View
@@ -81,11 +84,9 @@ export default function HomeScreen() {
           height: width,
           width: width,
           position: "relative",
-          borderWidth: 1,
-          borderColor: "white",
         }}
       >
-        <Svg height={width} width={width}>
+        <AnimatedSvg height={width} width={width}>
           <Defs>
             <Filter id="shadow">
               <FeGaussianBlur stdDeviation="100" />
@@ -98,6 +99,7 @@ export default function HomeScreen() {
             r={_clockRadius + 2}
             fill="none"
             stroke="#dbd66eff"
+            strokeWidth={2}
             strokeOpacity={0.4}
             filter="url(#shadow)"
           />
@@ -106,6 +108,7 @@ export default function HomeScreen() {
             cx={"50%"}
             cy={"50%"}
             r={_clockRadius}
+            strokeWidth={2}
             fill="none"
             stroke={"#dbd66e3a"}
           />
@@ -117,6 +120,8 @@ export default function HomeScreen() {
             strokeWidth={5}
             originX={width / 2}
             originY={width / 2}
+            rotation={time.hours * 15}
+            origin={[width / 2]}
           />
 
           {/* second hand  */}
@@ -124,9 +129,8 @@ export default function HomeScreen() {
             stroke={"#155c00ff"}
             d={`M ${width / 2},${width / 2 + 20} V ${_secondHandSize}`}
             strokeWidth={1}
-            animatedProps={secondHandRotate}
-            originX={width / 2}
-            originY={width / 2}
+            rotation={time.seconds * 6}
+            origin={[width / 2]}
           />
 
           <Circle cx={"50%"} cy={"50%"} r={5} fill="#8b8b8bff" />
@@ -136,6 +140,8 @@ export default function HomeScreen() {
             stroke={"#8b8b8bff"}
             d={`M ${width / 2},${width / 2} V ${_minuteHandSize}`}
             strokeWidth={3}
+            rotation={time.minutes * 6}
+            origin={[width / 2]}
           />
 
           {Array(12)
@@ -160,7 +166,7 @@ export default function HomeScreen() {
                 />
               );
             })}
-        </Svg>
+        </AnimatedSvg>
 
         <View
           style={[
@@ -224,6 +230,19 @@ export default function HomeScreen() {
         ]}
       >
         <Text style={[styles.indicatorText]}>9</Text>
+      </View>
+      <View
+        style={{
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 25,
+        }}
+      >
+        <Text style={{ color: "#ddd", fontSize: 40 }}>
+          {time.hours.toString().padStart(2, "0")}:
+          {time.minutes.toString().padStart(2, "0")}:
+          {time.seconds.toString().padStart(2, "0")}
+        </Text>
       </View>
     </View>
   );
